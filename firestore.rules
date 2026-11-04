@@ -1,0 +1,87 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function dono(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function nomeListaValido() {
+      return request.resource.data.nome is string
+        && request.resource.data.nome.size() >= 1
+        && request.resource.data.nome.size() <= 80;
+    }
+
+    // serverTimestamp() não passa em "is timestamp"; validar com == request.time na criação.
+    function listaValidaCriacao() {
+      return request.resource.data.keys().hasOnly(['nome', 'criadoEm'])
+        && request.resource.data.keys().hasAll(['nome', 'criadoEm'])
+        && nomeListaValido()
+        && request.resource.data.criadoEm == request.time;
+    }
+
+    function listaValidaAtualizacao() {
+      return request.resource.data.keys().hasOnly(['nome', 'criadoEm'])
+        && request.resource.data.keys().hasAll(['nome', 'criadoEm'])
+        && nomeListaValido()
+        && request.resource.data.criadoEm is timestamp
+        && request.resource.data.criadoEm == resource.data.criadoEm;
+    }
+
+    function camposProdutoValidos() {
+      return request.resource.data.nomeProduto is string
+        && request.resource.data.nomeProduto.size() >= 1
+        && request.resource.data.nomeProduto.size() <= 120
+        && request.resource.data.quantidade is number
+        && request.resource.data.quantidade > 0
+        && request.resource.data.quantidade <= 1000000
+        && request.resource.data.precoUnitario is number
+        && request.resource.data.precoUnitario >= 0
+        && request.resource.data.precoUnitario <= 1000000
+        && request.resource.data.comprado is bool;
+    }
+
+    function produtoValidoCriacao() {
+      return request.resource.data.keys().hasOnly([
+          'nomeProduto', 'quantidade', 'precoUnitario', 'dataAdicao', 'comprado'
+        ])
+        && request.resource.data.keys().hasAll([
+          'nomeProduto', 'quantidade', 'precoUnitario', 'dataAdicao', 'comprado'
+        ])
+        && camposProdutoValidos()
+        && request.resource.data.dataAdicao == request.time;
+    }
+
+    function produtoValidoAtualizacao() {
+      return request.resource.data.keys().hasOnly([
+          'nomeProduto', 'quantidade', 'precoUnitario', 'dataAdicao', 'comprado'
+        ])
+        && request.resource.data.keys().hasAll([
+          'nomeProduto', 'quantidade', 'precoUnitario', 'dataAdicao', 'comprado'
+        ])
+        && camposProdutoValidos()
+        && request.resource.data.dataAdicao is timestamp
+        && request.resource.data.dataAdicao == resource.data.dataAdicao;
+    }
+
+    match /usuarios/{uid}/listas/{listaId} {
+      allow read, delete: if dono(uid);
+      allow create: if dono(uid) && listaValidaCriacao();
+      allow update: if dono(uid)
+        && listaValidaAtualizacao()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome']);
+
+      match /produtos/{produtoId} {
+        allow read, delete: if dono(uid);
+        allow create: if dono(uid)
+          && exists(/databases/$(database)/documents/usuarios/$(uid)/listas/$(listaId))
+          && produtoValidoCriacao()
+          && request.resource.data.comprado == false;
+        allow update: if dono(uid)
+          && produtoValidoAtualizacao()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'nomeProduto', 'quantidade', 'precoUnitario', 'comprado'
+          ]);
+      }
+    }
+  }
+}

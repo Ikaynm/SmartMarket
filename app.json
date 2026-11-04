@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "SmartMarket",
+    "slug": "smartmarket",
+    "scheme": "smartmarket",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F4F7F4",
+    "android": {
+      "package": "com.smartmarket.app",
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": {
+        "backgroundColor": "#0E7C61"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.smartmarket.app",
+      "supportsTablet": true
+    },
+    "plugins": [
+      "expo-status-bar"
+    ]
+  }
+}
